@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from time import time
 from dataclasses import dataclass
 from datetime import datetime
 from os.path import exists
@@ -43,6 +44,7 @@ class SettingTemplate(TypedDict):
 class UsedBy(FlowLauncher):
 
     def query(self, param: str = "") -> List[FlowReturn]:
+        start = time()
         # settings = SettingTemplate(**self.rpc_request["settings"])
 
         attrs = ["open_files", "pid", "create_time", "name", "cwd", "exe"]
@@ -161,17 +163,28 @@ class UsedBy(FlowLauncher):
             if is_check_folder:
                 other_descs.append("folder check")
 
-            flow_return: FlowReturn = {
-                "Title": f"There are no processes using '{param}' " + (
-                    ("with " + self._join_with_last_separator(items=other_descs, sep=", ", last_sep="and "))
-                    if len(other_descs) > 0 else ""
-                ),
-                "SubTitle": "",
-                "IcoPath": "assets/logo.png",
-                "JsonRPCAction": None,
-                "ContextData": None,
-            }
-            return [flow_return]
+            flow_returns: List[FlowReturn] = [
+                {
+                    "Title": f"There are no processes using '{param}' " + (
+                        ("with " + self._join_with_last_separator(items=other_descs, sep=", ", last_sep="and "))
+                        if len(other_descs) > 0 else ""
+                    ),
+                    "SubTitle": "",
+                    "IcoPath": "assets/logo.png",
+                    "JsonRPCAction": None,
+                    "ContextData": None,
+                },
+                # Append total execution time to debug message
+                {
+                    "Title": "Execution Time",
+                    "SubTitle": f"{(time() - start):.0f} seconds",
+                    "IcoPath": "assets/logo.png",
+                    "JsonRPCAction": None,
+                    "ContextData": None,
+                },
+            ]
+
+            return flow_returns
 
         # Prepare the flow returns for each process found
         flow_returns: List[FlowReturn] = []
@@ -179,8 +192,8 @@ class UsedBy(FlowLauncher):
             local_zone = datetime.now().astimezone().tzinfo
             dt = datetime.fromtimestamp(proc["create_time"], tz=local_zone)
 
-            title: str = f"{proc["name"]} ({proc["pid"]})"
-            sub_title: str = f"PATH: {proc["match_path"]} | CWD: {proc["cwd"]} | EXE: {proc["exe"]} | TIME: {dt.strftime("%Y-%m-%dT%H:%M:%S%z")}"
+            title: str = f"{proc['name']} ({proc['pid']})"
+            sub_title: str = f"PATH: {proc['match_path']} | CWD: {proc['cwd']} | EXE: {proc['exe']} | TIME: {dt.strftime('%Y-%m-%dT%H:%M:%S%z')}"
 
             flow_return: FlowReturn = {
                 "Title": title,
@@ -197,6 +210,15 @@ class UsedBy(FlowLauncher):
                 },
             }
             flow_returns.append(flow_return)
+
+        # Append total execution time to debug message
+        flow_returns.append({
+            "Title": "Execution Time",
+            "SubTitle": f"{(time() - start):.0f} seconds",
+            "IcoPath": "assets/logo.png",
+            "JsonRPCAction": None,
+            "ContextData": None,
+        })
 
         return flow_returns
 
@@ -365,10 +387,10 @@ class UsedBy(FlowLauncher):
             self.debug(f"Process with PID {pid} not found or already terminated.")
 
     def _join_with_last_separator(self, items: List[str], sep: str, last_sep: str) -> str:
-        if len(items) == 1:
+        if len(items) == 0:
+            return ""
+        elif len(items) == 1:
             return items[0]
-        elif len(items) == 2:
-            return items[0] + last_sep + items[1]
         else:
             return sep.join(items[:-1]) + sep + last_sep + items[-1]
 
