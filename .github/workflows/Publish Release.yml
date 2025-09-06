@@ -3,15 +3,15 @@ name: Publish Release
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
-    paths-ignore: 
+    branches: [main]
+    paths-ignore:
       - .github/workflows/*
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     env:
-      python_ver: 3.11
+      python_ver: 3.8
 
     steps:
       - uses: actions/checkout@v2
@@ -22,10 +22,10 @@ jobs:
       - name: get version
         id: version
         uses: notiz-dev/github-action-json-property@release
-        with: 
-          path: 'plugin.json'
-          prop_path: 'Version'
-      - run: echo ${{steps.version.outputs.prop}} 
+        with:
+          path: "plugin.json"
+          prop_path: "Version"
+      - run: echo ${{steps.version.outputs.prop}}
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -35,7 +35,7 @@ jobs:
         if: success()
         uses: softprops/action-gh-release@v1
         with:
-          files: 'flow.launcher.plugin.used-by.zip'
+          files: "flow.launcher.plugin.used-by.zip"
           tag_name: "v${{steps.version.outputs.prop}}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
