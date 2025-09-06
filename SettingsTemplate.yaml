@@ -1,1 +1,8 @@
 #$schema: https://www.flowlauncher.com/schemas/settings-template.schema.json
+body:
+  - type: checkbox
+    attributes:
+      name: showExecutionTime
+      label: Show Execution Time
+      description: Show how long the execution time will take
+      defaultValue: "false"

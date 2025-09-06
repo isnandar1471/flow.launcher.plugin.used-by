@@ -31,6 +31,8 @@ You can combine the options, for example:
 - `used :ri <case insensitive regex>`: Find applications using the specified regex in a case-insensitive manner
 - `used :ifr <case insensitive folder regex>`: Find applications using the specified file/folder path or regex in a case-insensitive manner
 
+> *Note*: This plugin was developed using **Python 3.8**. If you encounter any issues, try updating your Python version to that version or higher.
+
 ## Programming Language
 
 - Python

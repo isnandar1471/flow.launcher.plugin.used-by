@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 from time import time
-from dataclasses import dataclass
 from datetime import datetime
 from os.path import exists
 from pathlib import Path
@@ -9,7 +8,7 @@ from platform import system
 from psutil import process_iter, Process, NoSuchProcess
 from re import search
 from subprocess import Popen
-from typing import TypedDict, List
+from typing import TypedDict, List, Union
 
 import pyperclip
 from flowlauncher import FlowLauncher
@@ -31,21 +30,20 @@ class FlowReturn(TypedDict):
     Title: str
     SubTitle: str
     IcoPath: str
-    JsonRPCAction: None | JsonRPCAction
-    ContextData: None | ContextData  # https://github.com/Flow-Launcher/docs/issues/49#issuecomment-1198576877
+    JsonRPCAction: Union[None, JsonRPCAction]
+    ContextData: Union[None, ContextData]  # https://github.com/Flow-Launcher/docs/issues/49#issuecomment-1198576877
 
-
-@dataclass
-class SettingTemplate(TypedDict):
-    pass
-
+Settings = TypedDict('Settings', {
+    'showExecutionTime': Union[str, None]
+})
 
 # Define the main class for the FlowLauncher plugin
 class UsedBy(FlowLauncher):
 
     def query(self, param: str = "") -> List[FlowReturn]:
         start = time()
-        # settings = SettingTemplate(**self.rpc_request["settings"])
+
+        settings = Settings(**self.rpc_request["settings"])
 
         attrs = ["open_files", "pid", "create_time", "name", "cwd", "exe"]
 
@@ -106,7 +104,7 @@ class UsedBy(FlowLauncher):
         # Iterate through all processes and check their open files and current working directory
         for proc in process_iter(attrs=attrs, ad_value=None):
 
-            open_files: list | None = proc.info["open_files"]
+            open_files: Union[list, None] = proc.info["open_files"]
             if open_files is not None:
                 for f in open_files:
                     new_proc_info: dict = proc.info.copy()
@@ -131,7 +129,7 @@ class UsedBy(FlowLauncher):
                             break
 
             if is_check_folder:
-                cwd: str | None = proc.info["cwd"]
+                cwd: Union[str, None] = proc.info["cwd"]
                 if cwd is not None:
                     new_proc_info: dict = proc.info.copy()
                     new_proc_info["match_path"]: str = cwd
@@ -154,6 +152,9 @@ class UsedBy(FlowLauncher):
                             processes.append(new_proc_info)
                             break
 
+        # Prepare the flow returns for each process found
+        flow_returns: List[FlowReturn] = []
+
         if len(processes) == 0:
             other_descs: List[str] = []
             if is_use_case_insensitive:
@@ -163,66 +164,55 @@ class UsedBy(FlowLauncher):
             if is_check_folder:
                 other_descs.append("folder check")
 
-            flow_returns: List[FlowReturn] = [
-                {
-                    "Title": f"There are no processes using '{param}' " + (
-                        ("with " + self._join_with_last_separator(items=other_descs, sep=", ", last_sep="and "))
-                        if len(other_descs) > 0 else ""
-                    ),
-                    "SubTitle": "",
-                    "IcoPath": "assets/logo.png",
-                    "JsonRPCAction": None,
-                    "ContextData": None,
-                },
-                # Append total execution time to debug message
-                {
-                    "Title": "Execution Time",
-                    "SubTitle": f"{(time() - start):.0f} seconds",
-                    "IcoPath": "assets/logo.png",
-                    "JsonRPCAction": None,
-                    "ContextData": None,
-                },
-            ]
-
-            return flow_returns
-
-        # Prepare the flow returns for each process found
-        flow_returns: List[FlowReturn] = []
-        for proc in processes:
-            local_zone = datetime.now().astimezone().tzinfo
-            dt = datetime.fromtimestamp(proc["create_time"], tz=local_zone)
-
-            title: str = f"{proc['name']} ({proc['pid']})"
-            sub_title: str = f"PATH: {proc['match_path']} | CWD: {proc['cwd']} | EXE: {proc['exe']} | TIME: {dt.strftime('%Y-%m-%dT%H:%M:%S%z')}"
-
             flow_return: FlowReturn = {
-                "Title": title,
-                "SubTitle": sub_title,
+                "Title": f"There are no processes using '{param}' " + (
+                    ("with " + self._join_with_last_separator(items=other_descs, sep=", ", last_sep="and "))
+                    if len(other_descs) > 0 else ""
+                ),
+                "SubTitle": "",
                 "IcoPath": "assets/logo.png",
-                "JsonRPCAction": {
-                    "method": "open_cwd",
-                    "parameters": [proc["cwd"]]
-                },
-                "ContextData": {
-                    "pid": proc["pid"],
-                    "create_time": proc["create_time"],
-                    "match_path": proc["match_path"],
-                },
+                "JsonRPCAction": None,
+                "ContextData": None,
             }
             flow_returns.append(flow_return)
 
-        # Append total execution time to debug message
-        flow_returns.append({
-            "Title": "Execution Time",
-            "SubTitle": f"{(time() - start):.0f} seconds",
-            "IcoPath": "assets/logo.png",
-            "JsonRPCAction": None,
-            "ContextData": None,
-        })
+        else:
+            for proc in processes:
+                local_zone = datetime.now().astimezone().tzinfo
+                dt = datetime.fromtimestamp(proc["create_time"], tz=local_zone)
+
+                title: str = f"{proc['name']} ({proc['pid']})"
+                sub_title: str = f"PATH: {proc['match_path']} | CWD: {proc['cwd']} | EXE: {proc['exe']} | TIME: {dt.strftime('%Y-%m-%dT%H:%M:%S%z')}"
+
+                flow_return: FlowReturn = {
+                    "Title": title,
+                    "SubTitle": sub_title,
+                    "IcoPath": "assets/logo.png",
+                    "JsonRPCAction": {
+                        "method": "open_cwd",
+                        "parameters": [proc["cwd"]]
+                    },
+                    "ContextData": {
+                        "pid": proc["pid"],
+                        "create_time": proc["create_time"],
+                        "match_path": proc["match_path"],
+                    },
+                }
+                flow_returns.append(flow_return)
+
+        if settings["showExecutionTime"]:
+            # Append total execution time to debug message
+            flow_returns.append({
+                "Title": "Execution Time",
+                "SubTitle": f"{(time() - start):.0f} seconds",
+                "IcoPath": "assets/logo.png",
+                "JsonRPCAction": None,
+                "ContextData": None,
+            })
 
         return flow_returns
 
-    def context_menu(self, data: None | ContextData = None) -> List[FlowReturn]:
+    def context_menu(self, data: Union[None, ContextData] = None) -> List[FlowReturn]:
         if data is None:
             return []
 
@@ -356,15 +346,14 @@ class UsedBy(FlowLauncher):
 
         os_name = system()
 
-        match os_name:
-            case "Windows":
-                return Popen(f'explorer "{cwd_path}"')
-            case "Linux":
-                return Popen(["xdg-open", cwd_path])
-            case "Darwin":
-                return Popen(["open", cwd_path])
-            case _:
-                self.debug(f"Unsupported OS: {os_name}")
+        if os_name == "Windows":
+            return Popen(f'explorer "{cwd_path}"')
+        elif os_name == "Linux":
+            return Popen(["xdg-open", cwd_path])
+        elif os_name == "Darwin":
+            return Popen(["open", cwd_path])
+        else:
+            self.debug(f"Unsupported OS: {os_name}")
 
     def terminate_process(self, pid: int, create_time: float):
         try:

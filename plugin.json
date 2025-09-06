@@ -4,10 +4,10 @@
     "Name": "Used-By",
     "Description": "Find which applications are currently using a path",
     "Author": "isnandar1471",
-    "Version": "0.0.2",
+    "Version": "0.0.3",
     "Language": "python",
     "Website": "https://github.com/isnandar1471/flow.launcher.plugin.used-by",
-    "IcoPath": "assets/icon.png",
+    "IcoPath": "assets/logo.png",
     "ExecuteFileName": "main.py",
     "ActionKeywords": [
         "used"
