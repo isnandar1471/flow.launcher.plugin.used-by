@@ -9,16 +9,17 @@ on:
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     env:
-      python_ver: 3.8
+      python_ver: 3.11
 
     steps:
       - uses: actions/checkout@v2
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+      - name: Set up Python ${{ env.python_ver }}
+        uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ env.python_ver }}
+          architecture: "x64"
       - name: get version
         id: version
         uses: notiz-dev/github-action-json-property@release
